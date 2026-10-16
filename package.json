@@ -1,0 +1,12 @@
+{
+  "name": "devdocs-ai",
+  "private": true,
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "dev": "npm run dev --workspace @devdocs/web -- --port 3001",
+    "build": "npm run build --workspace @devdocs/web",
+    "typecheck": "npm run typecheck --workspace @devdocs/web",
+    "test:e2e": "npm run test:e2e --workspace @devdocs/web"
+  },
+  "engines": { "node": ">=22" }
+}
