@@ -1,0 +1,151 @@
+# Incremental stack. Build api first; initialize storage and migrate before starting it.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Run the rehearsal config initializer first}
+      POSTGRES_DB: ${POSTGRES_DB:?Run the rehearsal config initializer first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run the rehearsal config initializer first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: devdocs-rehearsal-api:local
+    build:
+      context: ../..
+      dockerfile: infra/deploy/api.Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      DATABASE_URL: &rehearsal_database_url postgresql+psycopg://${POSTGRES_USER:?Run the config initializer}:${POSTGRES_PASSWORD:?Run the config initializer}@postgres:5432/${POSTGRES_DB:?Run the config initializer}
+      UPLOAD_DIR: /data/uploads
+      COOKIE_NAME: devdocs_rehearsal_session
+      COOKIE_SECURE: "false"
+      ALLOWED_ORIGINS: '["http://127.0.0.1:${REHEARSAL_PORT:?Run the config initializer}","http://localhost:${REHEARSAL_PORT:?Run the config initializer}"]'
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-deepseek-ai/DeepSeek-V4-Flash}
+      DAILY_CHAT_LIMIT: ${DAILY_CHAT_LIMIT:-50}
+      DAILY_INDEX_LIMIT: ${DAILY_INDEX_LIMIT:-20}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    image: devdocs-rehearsal-web:local
+    build:
+      context: ../..
+      dockerfile: infra/deploy/web.Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      API_BASE_URL: http://api:8000
+      SESSION_COOKIE_NAME: devdocs_rehearsal_session
+    ports:
+      - "127.0.0.1:${REHEARSAL_PORT:?Run the config initializer}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login', {signal: AbortSignal.timeout(3000), redirect: 'manual'}).then(r => { if (r.status !== 200) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  storage-init:
+    image: devdocs-rehearsal-api:local
+    profiles: [maintenance]
+    user: "0:0"
+    network_mode: none
+    read_only: true
+    volumes:
+      - uploads:/data/uploads
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+    command:
+      - python
+      - -c
+      - |
+        import os
+        path = '/data/uploads'
+        os.chown(path, 10001, 10001)
+        os.chmod(path, 0o750)
+        print('uploads initialized')
+
+  backup-files:
+    image: devdocs-rehearsal-api:local
+    profiles: [maintenance]
+    network_mode: none
+    volumes:
+      - uploads:/data/uploads:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command: ["python", "-", "create", "--source", "/data/uploads", "--output", "/tmp/uploads.tar"]
+
+  migrate:
+    image: devdocs-rehearsal-api:local
+    profiles: [maintenance]
+    read_only: true
+    environment:
+      DATABASE_URL: *rehearsal_database_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+
+volumes:
+  postgres_data:
+  uploads:

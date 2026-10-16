@@ -1,0 +1,50 @@
+# Backup-001 recovery rehearsal only. Always use project devdocs-restore-001
+# and the separate generated .env.restore-001; never apply to the source stack.
+services:
+  postgres:
+    image: sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+  api:
+    image: sha256:7edf983a3e9f646a849baf0d3c7716dc1f55b0a3d8c42e3b116625dae0c49636
+    environment:
+      COOKIE_NAME: devdocs_restore_001_session
+      SILICONFLOW_API_KEY: ""
+  web:
+    image: sha256:8bc35d1c32e5496d719f1a192d71c6bc4789b4aabab6a5d13f2d58977c8300d4
+    environment:
+      SESSION_COOKIE_NAME: devdocs_restore_001_session
+  restore-files:
+    image: sha256:7edf983a3e9f646a849baf0d3c7716dc1f55b0a3d8c42e3b116625dae0c49636
+    profiles: [maintenance]
+    user: "0:0"
+    network_mode: none
+    volumes:
+      - uploads:/data/uploads
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    command:
+      - python
+      - -c
+      - |
+        import json, os, runpy
+        from pathlib import Path
+        tools = runpy.run_path('/tmp/archive.py')
+        root = Path('/data/uploads')
+        if root.is_symlink() or not root.is_dir():
+            raise ValueError('invalid_restore_target')
+        os.chown(root, 0, 0)
+        os.chmod(root, 0o750)
+        try:
+            if any(root.iterdir()):
+                raise ValueError('restore_target_not_empty')
+            result = tools['restore_upload_archive'](
+                Path('/tmp/uploads.tar'), root,
+                expected_archive='8383cdabffe9fafe12302f59ca332a941a100c5964912fd4ccd7cc98b93126d1')
+            for path in root.iterdir():
+                os.chown(path, 10001, 10001)
+                os.chmod(path, 0o640)
+        finally:
+            os.chmod(root, 0o750)
+            os.chown(root, 10001, 10001)
+        print(json.dumps(result))
