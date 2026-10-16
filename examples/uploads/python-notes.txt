@@ -1,0 +1,7 @@
+Python 函数与类型
+
+def add(left: int, right: int) -> int:
+    return left + right
+
+类型注解帮助阅读和静态检查，不会自动在运行时验证输入。
+学习任务：为函数添加正常输入和边界输入测试。
