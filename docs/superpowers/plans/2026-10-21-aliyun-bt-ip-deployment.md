@@ -81,4 +81,3 @@
 - [x] Write UI-oriented Baota steps matching the Compose editor and `.env` fields; include first-run migration behavior and public GHCR setting.
 - [x] Run all deployment tests, `git diff --check`, and a Compose YAML parse/contract check; expected: no failures.
 - [x] Inspect the final diff for accidental secrets, destructive volume commands, public database/API ports, or rehearsal-only settings.
-

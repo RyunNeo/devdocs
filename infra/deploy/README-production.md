@@ -55,4 +55,3 @@
 ## 结束临时 IP 验收
 
 申请并完成域名备案、配置可信 HTTPS 之后，把 `PUBLIC_ORIGIN` 改为 HTTPS 域名，并将 API 的 `COOKIE_SECURE` 改为 `true`，重新发布/更新服务并完整验收后，再把 HTTP 80 重定向到 HTTPS。不要在仍使用 HTTP 时启用 `COOKIE_SECURE=true`，否则登录 Cookie 不会通过 HTTP 发送。
-

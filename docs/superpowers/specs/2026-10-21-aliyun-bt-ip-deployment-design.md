@@ -39,7 +39,6 @@ GitHub Actions 使用仓库中的 API/Web Dockerfile 构建 Linux 容器镜像�
 4. 数据库和上传目录均为持久化卷；迁移需在 API 启动前成功完成。
 5. README 明确：IP HTTP 仅用于白名单下短期验收，换网络时更新来源 IP；登录凭据与会话不具备传输加密保护。正式开放前必须切换为可信 HTTPS，并启用 Secure Cookie。
 6. CI 成功只能证明镜像构建和合约检查通过；真实服务器验收仍需用户逐步在宝塔操作并回报结果。
-
 ## 不包含
 
 - 域名购买、ICP 备案、TLS/HTTPS 部署。
