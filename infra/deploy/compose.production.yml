@@ -22,7 +22,7 @@ services:
         max-file: "3"
 
   migrate:
-    image: ghcr.io/ryunneo/devdocs-api:${IMAGE_TAG:?Set IMAGE_TAG in the Baota .env field}
+    image: devdocs-prod-api:local
     restart: "no"
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}"
@@ -42,7 +42,10 @@ services:
         max-file: "3"
 
   api:
-    image: ghcr.io/ryunneo/devdocs-api:${IMAGE_TAG:?Set IMAGE_TAG in the Baota .env field}
+    image: devdocs-prod-api:local
+    build:
+      context: ../..
+      dockerfile: infra/deploy/api.Dockerfile
     restart: unless-stopped
     init: true
     environment:
@@ -78,7 +81,10 @@ services:
         max-file: "3"
 
   web:
-    image: ghcr.io/ryunneo/devdocs-web:${IMAGE_TAG:?Set IMAGE_TAG in the Baota .env field}
+    image: devdocs-prod-web:local
+    build:
+      context: ../..
+      dockerfile: infra/deploy/web.Dockerfile
     restart: unless-stopped
     init: true
     environment:

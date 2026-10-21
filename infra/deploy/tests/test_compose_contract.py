@@ -188,13 +188,20 @@ def _production_compose():
     return yaml.safe_load((ROOT / "infra/deploy/compose.production.yml").read_text(encoding="utf-8"))
 
 
-def test_production_images_are_sha_tagged_ghcr_references():
+def test_production_images_are_built_locally_from_repository_root():
     services = _production_compose()["services"]
-    for name in ("api", "web", "migrate"):
-        image = services[name]["image"]
-        assert image.startswith(f"ghcr.io/ryunneo/devdocs-{name if name != 'migrate' else 'api'}:")
-        assert "${IMAGE_TAG:?" in image
-        assert "build" not in services[name]
+    assert services["api"]["build"] == {
+        "context": "../..",
+        "dockerfile": "infra/deploy/api.Dockerfile",
+    }
+    assert services["api"]["image"] == "devdocs-prod-api:local"
+    assert services["migrate"]["image"] == services["api"]["image"]
+    assert services["web"]["build"] == {
+        "context": "../..",
+        "dockerfile": "infra/deploy/web.Dockerfile",
+    }
+    assert services["web"]["image"] == "devdocs-prod-web:local"
+    assert all("ghcr.io/" not in service.get("image", "") for service in services.values())
 
 
 def test_production_database_has_pgvector_and_no_public_port():
@@ -251,9 +258,12 @@ def test_production_env_contract_matches_cookie_and_origin_settings():
     assert api_env["SILICONFLOW_API_KEY"] == "${SILICONFLOW_API_KEY:-}"
 
     env_example = (ROOT / "infra/deploy/production.env.example").read_text(encoding="utf-8")
-    for key in ("POSTGRES_PASSWORD", "SILICONFLOW_API_KEY", "IMAGE_TAG", "PUBLIC_ORIGIN"):
+    for key in ("POSTGRES_PASSWORD", "SILICONFLOW_API_KEY", "PUBLIC_ORIGIN"):
         assert f"{key}=" in env_example
     assert "REPLACE_WITH" in env_example
     assert "POSTGRES_PASSWORD=REPLACE_WITH_64_HEX_CHARACTERS" in env_example
     assert "SILICONFLOW_API_KEY=" in env_example
     assert "SILICONFLOW_API_KEY=\n" in env_example
+def test_production_env_no_longer_requires_a_prebuilt_image_tag():
+    env_example = (ROOT / "infra/deploy/production.env.example").read_text(encoding="utf-8")
+    assert "IMAGE_TAG" not in env_example
