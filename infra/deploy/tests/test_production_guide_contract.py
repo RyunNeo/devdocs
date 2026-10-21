@@ -15,11 +15,37 @@ def test_production_guide_covers_baota_first_deploy():
         "常规创建",
         "compose.production.yml",
         "production.env.example",
-        "GHCR",
-        "IMAGE_TAG",
+        "GitHub",
+        "本机构建",
         "SILICONFLOW_API_KEY",
         "http://47.106.71.228",
         "健康",
+    ):
+        assert phrase in guide
+    assert "IMAGE_TAG" not in guide
+    assert "Publish container images" not in guide
+
+
+def test_guide_requires_repository_file_source_for_relative_build_context():
+    guide = _guide()
+    assert "GitHub 仓库" in guide
+    assert "选择 **文件**" in guide
+    assert "infra/deploy/compose.production.yml" in guide
+    assert "相对构建上下文" in guide
+    assert "编辑" in guide and "不适合" in guide
+
+
+def test_guide_explains_registry_network_and_memory_prerequisites():
+    guide = _guide()
+    for phrase in (
+        "pgvector/pgvector:pg16",
+        "python:3.14-slim",
+        "node:22-slim",
+        "Registry 网络",
+        "npm",
+        "PyPI",
+        "2 GiB",
+        "OOM",
     ):
         assert phrase in guide
 
@@ -28,15 +54,15 @@ def test_production_guide_warns_about_http_and_security_group():
     guide = _guide()
     assert "/32" in guide
     assert "明文 HTTP" in guide and "没有传输加密保护" in guide
-    assert "Secure Cookie" in guide
+    assert "COOKIE_SECURE" in guide
     assert "不要" in guide and "5432" in guide and "8000" in guide
 
 
 def test_production_guide_documents_backup_and_rollback():
     guide = _guide()
     assert "磁盘快照" in guide
-    assert "回滚" in guide
-    assert "旧 SHA" in guide
+    assert "恢复磁盘快照" in guide
+    assert "源码提交" in guide
     assert "删除数据卷" in guide
 
 
