@@ -182,3 +182,78 @@ def test_restore_override_pins_images_and_isolates_cookie():
     assert script.index("for path in root.iterdir():") < script.index(
         "os.chown(root, 10001, 10001)"
     )
+
+
+def _production_compose():
+    return yaml.safe_load((ROOT / "infra/deploy/compose.production.yml").read_text(encoding="utf-8"))
+
+
+def test_production_images_are_sha_tagged_ghcr_references():
+    services = _production_compose()["services"]
+    for name in ("api", "web", "migrate"):
+        image = services[name]["image"]
+        assert image.startswith(f"ghcr.io/ryunneo/devdocs-{name if name != 'migrate' else 'api'}:")
+        assert "${IMAGE_TAG:?" in image
+        assert "build" not in services[name]
+
+
+def test_production_database_has_pgvector_and_no_public_port():
+    compose = _production_compose()
+    services = compose["services"]
+    postgres = services["postgres"]
+    assert postgres["image"] == "pgvector/pgvector:pg16"
+    assert not postgres.get("ports")
+    assert postgres["healthcheck"]["test"][0] == "CMD-SHELL"
+    assert "pg_isready" in postgres["healthcheck"]["test"][1]
+    assert "postgres_data:/var/lib/postgresql/data" in postgres["volumes"]
+    assert "001-pgvector.sql" not in str(postgres.get("volumes", []))
+
+    migration = ROOT / "apps/api/app/db/migrations/versions/0001_auth.py"
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in migration.read_text(encoding="utf-8")
+
+
+def test_production_api_is_private_and_waits_for_migration():
+    services = _production_compose()["services"]
+    migrate = services["migrate"]
+    api = services["api"]
+    assert migrate["command"] == ["python", "-m", "alembic", "upgrade", "head"]
+    assert migrate["depends_on"]["postgres"]["condition"] == "service_healthy"
+    assert api["depends_on"]["migrate"]["condition"] == "service_completed_successfully"
+    assert not api.get("ports") and not migrate.get("ports")
+    assert "uploads:/data/uploads" in api["volumes"]
+    assert "DATABASE_URL" in api["environment"]
+    assert "@postgres:5432/" in api["environment"]["DATABASE_URL"]
+
+
+def test_production_web_is_the_only_public_http_service():
+    services = _production_compose()["services"]
+    web = services["web"]
+    assert web["ports"] == ["80:3000"]
+    assert web["environment"]["API_BASE_URL"] == "http://api:8000"
+    assert web["depends_on"]["api"]["condition"] == "service_healthy"
+    assert all(not service.get("ports") for name, service in services.items() if name != "web")
+
+
+def test_production_volumes_persist_database_and_uploads():
+    compose = _production_compose()
+    assert set(compose["volumes"]) == {"postgres_data", "uploads"}
+    assert "postgres_data:/var/lib/postgresql/data" in compose["services"]["postgres"]["volumes"]
+    assert "uploads:/data/uploads" in compose["services"]["api"]["volumes"]
+
+
+def test_production_env_contract_matches_cookie_and_origin_settings():
+    services = _production_compose()["services"]
+    api_env = services["api"]["environment"]
+    web_env = services["web"]["environment"]
+    assert api_env["COOKIE_NAME"] == web_env["SESSION_COOKIE_NAME"]
+    assert api_env["COOKIE_SECURE"] == "false"
+    assert '${PUBLIC_ORIGIN:?' in api_env["ALLOWED_ORIGINS"]
+    assert api_env["SILICONFLOW_API_KEY"] == "${SILICONFLOW_API_KEY:-}"
+
+    env_example = (ROOT / "infra/deploy/production.env.example").read_text(encoding="utf-8")
+    for key in ("POSTGRES_PASSWORD", "SILICONFLOW_API_KEY", "IMAGE_TAG", "PUBLIC_ORIGIN"):
+        assert f"{key}=" in env_example
+    assert "REPLACE_WITH" in env_example
+    assert "POSTGRES_PASSWORD=REPLACE_WITH_64_HEX_CHARACTERS" in env_example
+    assert "SILICONFLOW_API_KEY=" in env_example
+    assert "SILICONFLOW_API_KEY=\n" in env_example
