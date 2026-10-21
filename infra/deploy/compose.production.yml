@@ -23,6 +23,7 @@ services:
 
   migrate:
     image: devdocs-prod-api:local
+    pull_policy: never
     restart: "no"
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}"
@@ -43,6 +44,7 @@ services:
 
   api:
     image: devdocs-prod-api:local
+    pull_policy: build
     build:
       context: ../..
       dockerfile: infra/deploy/api.Dockerfile
@@ -82,6 +84,7 @@ services:
 
   web:
     image: devdocs-prod-web:local
+    pull_policy: build
     build:
       context: ../..
       dockerfile: infra/deploy/web.Dockerfile

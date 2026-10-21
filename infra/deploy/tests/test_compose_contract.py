@@ -195,12 +195,15 @@ def test_production_images_are_built_locally_from_repository_root():
         "dockerfile": "infra/deploy/api.Dockerfile",
     }
     assert services["api"]["image"] == "devdocs-prod-api:local"
+    assert services["api"]["pull_policy"] == "build"
     assert services["migrate"]["image"] == services["api"]["image"]
+    assert services["migrate"]["pull_policy"] == "never"
     assert services["web"]["build"] == {
         "context": "../..",
         "dockerfile": "infra/deploy/web.Dockerfile",
     }
     assert services["web"]["image"] == "devdocs-prod-web:local"
+    assert services["web"]["pull_policy"] == "build"
     assert all("ghcr.io/" not in service.get("image", "") for service in services.values())
 
 

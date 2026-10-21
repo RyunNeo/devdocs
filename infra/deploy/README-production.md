@@ -4,6 +4,8 @@
 
 本方案由宝塔取得公开 GitHub 源码，并在 ECS 上本机构建 API/Web 镜像。ECS 仍需下载 Docker 基础镜像，并访问 npm 与 PyPI 依赖源；本机构建不会绕过镜像仓库网络。当前生产 Compose 的 PostgreSQL 镜像为 `pgvector/pgvector:pg16`，API/Web 构建基础镜像分别为 `python:3.14-slim`、`node:22-slim`。
 
+Compose 会直接本地构建 API/Web，并让迁移服务复用 API 本地镜像，不从远端仓库拉取应用镜像。PostgreSQL 和 Dockerfile 中的 Python/Node 基础镜像仍必须能够从镜像仓库获取。
+
 服务器为 2 vCPU / 2 GiB RAM。Next.js 构建和 Python 依赖安装可能占用较多内存；若系统或构建容器出现 OOM、持续内存不足或面板无响应，先停止构建并评估串行构建能力或升级内存，不要反复重建。40 GiB 系统盘还要容纳源码、构建缓存、镜像、数据库和上传文件。
 
 ## 获取源码

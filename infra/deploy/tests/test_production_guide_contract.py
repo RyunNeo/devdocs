@@ -17,6 +17,7 @@ def test_production_guide_covers_baota_first_deploy():
         "production.env.example",
         "GitHub",
         "本机构建",
+        "不从远端仓库拉取应用镜像",
         "SILICONFLOW_API_KEY",
         "http://47.106.71.228",
         "健康",
