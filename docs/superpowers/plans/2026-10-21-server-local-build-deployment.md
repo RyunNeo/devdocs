@@ -17,7 +17,7 @@
 - 入口暂为 `http://47.106.71.228`，阿里云安全组 TCP 80 仅允许当前公网 IP `/32`。
 - PostgreSQL 使用 `pgvector/pgvector:pg16`；API/Web 构建分别使用仓库现有 `infra/deploy/api.Dockerfile` 与 `infra/deploy/web.Dockerfile`。
 - API Key 与数据库密码仅配置在宝塔运行时 `.env`，不作为 Docker build args。
-- Compose 仅将 Web 的 `80:3000` 发布到主机；不公开 API `8000` 或数据库 `5432`。
+- Compose 将 Web 发布到配置的 HTTP 端口；PostgreSQL `5432` 仅绑定 `127.0.0.1` 供 SSH 隧道使用，不公开 API `8000` 或数据库 `5432` 到公网。
 - `postgres_data` 与 `uploads` 命名卷持久化；不得通过删除卷排障。
 - 本机构建仍需 Docker 基础镜像与 npm/Python 包索引可访问；不能把本机构建当作绕开镜像仓库的手段。
 

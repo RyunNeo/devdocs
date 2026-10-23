@@ -212,7 +212,7 @@ def test_production_database_has_pgvector_and_no_public_port():
     services = compose["services"]
     postgres = services["postgres"]
     assert postgres["image"] == "pgvector/pgvector:pg16"
-    assert not postgres.get("ports")
+    assert postgres["ports"] == ["127.0.0.1:5432:5432"]
     assert postgres["healthcheck"]["test"][0] == "CMD-SHELL"
     assert "pg_isready" in postgres["healthcheck"]["test"][1]
     assert "postgres_data:/var/lib/postgresql/data" in postgres["volumes"]
@@ -241,7 +241,8 @@ def test_production_web_is_the_only_public_http_service():
     assert web["ports"] == ["80:3000"]
     assert web["environment"]["API_BASE_URL"] == "http://api:8000"
     assert web["depends_on"]["api"]["condition"] == "service_healthy"
-    assert all(not service.get("ports") for name, service in services.items() if name != "web")
+    assert not services["migrate"].get("ports")
+    assert not services["api"].get("ports")
 
 
 def test_production_volumes_persist_database_and_uploads():

@@ -22,7 +22,7 @@
 
 1. 在宝塔支持的 Git/源码管理界面将公开仓库检出到固定目录，并选择一个明确的分支或提交。
 2. 在宝塔容器编排中使用仓库内的 `infra/deploy/compose.production.yml` 文件来源，而非只粘贴 Compose 文本。API 和 Web 服务使用 `build.context: ../..` 与仓库现有 Dockerfile；迁移服务复用 API 本地构建镜像。
-3. 构建并运行 API、Web。Compose 的宿主机端口仍只有 `80:3000`；API `8000` 与 PostgreSQL `5432` 不公开。
+3. 构建并运行 API、Web。Web 映射到配置的宿主机 HTTP 端口；PostgreSQL `5432` 只绑定宿主机回环地址供 SSH 隧道使用，API `8000` 与数据库均不公开到公网。
 4. PostgreSQL 继续使用 `pgvector/pgvector:pg16` 镜像，数据卷和启动顺序维持不变。开始完整构建前，先在宝塔确认 Docker 能取得数据库镜像及 `python:3.14-slim`、`node:22-slim` 基础镜像，并确认 ECS 构建网络可以访问 npm 与 Python 包索引。若 Docker Hub 或依赖源在 ECS 上仍超时，应先解决镜像/网络来源，不把本机构建误当作绕开 Registry 的手段。
 5. 移除用于发布 API/Web 应用镜像到 GHCR 的 GitHub Actions workflow 与对应的镜像发布合约测试；保留其余 CI 与代码测试。已有 GHCR 包不自动删除、不改可见性。
 
